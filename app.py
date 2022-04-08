@@ -3,72 +3,19 @@ from flask import jsonify
 from flask import Flask, request
 import matplotlib.pyplot as plt
 import json
-import sys
-import numpy as np
-import torch
-import torch.nn.functional as F
-from PIL import Image
-import cv2
-from copy import deepcopy
-from IPython import embed
-import torchvision.transforms as transforms
-sys.path.insert(0, '..')
-from isegm.utils import vis, exp
-import io
-from isegm.inference import utils
-
-device = torch.device('cuda:0')
-cfg = exp.load_config_file('../config.yml', return_edict=True)
-
-
-def transform_image(image_bytes):
-    my_transforms = transforms.Compose([transforms.Resize(255),
-                                        transforms.CenterCrop(224),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize(
-                                            [0.485, 0.456, 0.406],
-                                            [0.229, 0.224, 0.225])])
-    image = Image.open(io.BytesIO(image_bytes))
-    return my_transforms(image).unsqueeze(0)
-
-
-
+from handle_click import get_prediction_from_click, transform_image
 from isegm.inference.clicker import Click
-from isegm.inference.clicker import Clicker
-def get_prediction_from_click(image, predictor, max_iou_thr, pred_thr=0.49, single_click=None):
-
-    clicker = Clicker(init_clicks=single_click)
-    with torch.no_grad():
-        predictor.set_input_image(image)
-        pred_probs = predictor.get_prediction(clicker)
-        pred_mask = pred_probs > pred_thr
-    ious_list = [] 
-    
-    return clicker.clicks_list, np.array(ious_list, dtype=np.float32), pred_probs
-
-from isegm.inference.predictors import get_predictor
+import cv2
+from isegm.utils import exp
 
 EVAL_MAX_CLICKS = 20
 MODEL_THRESH = 0.49
 
-checkpoint_path = utils.find_checkpoint(cfg.INTERACTIVE_MODELS_PATH_FOR_WEB, 'coco_lvis_h18s_itermask')
-model = utils.load_is_model(checkpoint_path, device)
-
-brs_mode = 'f-BRS-B'
-predictor = get_predictor(model, brs_mode, device, prob_thresh=MODEL_THRESH)
-
-
-
 app = Flask(__name__)
-
-@app.route('/')
-def hello():
-    return 'Hello, World!'
-
-
-
-DATASET = 'GrabCut'
-dataset = utils.get_dataset(DATASET, cfg)
+cfg = exp.load_config_file('./web_config.yml', return_edict=True)
+# from isegm.inference import utils
+# DATASET = 'GrabCut'
+# dataset = utils.get_dataset(DATASET, cfg)
 
 
 '''
@@ -81,8 +28,12 @@ dataset = utils.get_dataset(DATASET, cfg)
     } 
 }
 '''
+image_path = cfg.TEST_IMAGES
+image = cv2.imread(image_path)
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-annotating_image = dataset.get_sample(12).image
+
+annotating_image = image
 
 @app.route('/click', methods=['POST'])
 def click():
@@ -96,10 +47,7 @@ def click():
         # convert that to bytes
 
         single_click = [Click(is_positive=is_positive, coords=(click_info_x, click_info_y))]
-        clicks_list, ious_arr, pred = get_prediction_from_click(annotating_image, predictor, 
-                                              pred_thr=MODEL_THRESH, 
-                                              max_iou_thr=TARGET_IOU,
-                                              single_click=single_click)
+        clicks_list, ious_arr, pred = get_prediction_from_click(annotating_image, single_click=single_click)
         pred_mask = pred > MODEL_THRESH
         print(pred_mask)
         return jsonify({'pred_mask': ""})

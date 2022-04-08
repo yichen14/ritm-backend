@@ -1,0 +1,7 @@
+INTERACTIVE_MODELS_PATH_FOR_WEB: "./weights"
+
+#TEST FILES
+TEST_IMAGES: "./images/cat.jpg"
+
+#TEST DATASET:
+
