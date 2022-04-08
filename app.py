@@ -3,10 +3,13 @@ from flask import jsonify
 from flask import Flask, request
 import matplotlib.pyplot as plt
 import json
+import numpy as np
 from handle_click import get_prediction_from_click, transform_image
 from isegm.inference.clicker import Click
 import cv2
-from isegm.utils import exp
+from isegm.utils import vis, exp
+import base64
+
 
 EVAL_MAX_CLICKS = 20
 MODEL_THRESH = 0.49
@@ -49,11 +52,15 @@ def click():
         single_click = [Click(is_positive=is_positive, coords=(click_info_x, click_info_y))]
         clicks_list, ious_arr, pred = get_prediction_from_click(annotating_image, single_click=single_click)
         pred_mask = pred > MODEL_THRESH
-        print(pred_mask)
-        return jsonify({'pred_mask': ""})
+        return jsonify(json.dumps(pred_mask.tolist()))
 
 @app.route('/addimg', methods=['POST'])
 def add_img():
     data = request.files['file'].read()
     annotating_image = transform_image(data)
     return jsonify({'status': "success"})
+
+@app.route('/getimg', methods=['GET'])
+def get_annotating_img():
+    
+    return jsonify(json.dumps(annotating_image.tolist()))
