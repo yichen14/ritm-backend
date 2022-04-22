@@ -50,9 +50,10 @@ predictor = get_predictor(model, brs_mode, device, prob_thresh=MODEL_THRESH)
 
 annotating_image = image
 predictor.set_input_image(annotating_image)
-
+clicks_list = []
 @app.route('/click', methods=['POST'])
 def click():
+    global clicks_list
     if request.method == 'POST':
         # we will get the file from the request
         
@@ -61,22 +62,35 @@ def click():
         click_info_x = data['click']['coords_x']
         click_info_y = data['click']['coords_y']
         # convert that to bytes
-        
-        single_click = [Click(is_positive=is_positive, coords=(click_info_x, click_info_y))]
+        click = Click(is_positive=is_positive, coords=(click_info_x, click_info_y))
+        clicks_list.append(click)
+        single_click = [click]
         _, _, pred_mask = get_prediction_from_click(predictor, single_click=single_click)
-        return jsonify(json.dumps(pred_mask.tolist()))
+        
+        #print(pred_mask[420:430, 350:370])
+        draw = vis.draw_with_blend_and_clicks(annotating_image, mask=pred_mask, clicks_list=clicks_list)
+        draw = np.concatenate((draw,
+            255 * pred_mask[:, :, np.newaxis].repeat(3, axis=2)
+        ), axis=1)
+        # print(annotating_image[420:430, 350:370])
+        # print("--------------------------")
+        # print(draw[420:430, 350:370])
+        img_arr = Image.fromarray(np.uint8(draw))
+        im_byte = io.BytesIO()
+        img_arr.save(im_byte, format='PNG')
+        my_string = base64.b64encode(im_byte.getvalue())
+        response = jsonify({"img": str(my_string)})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
 
 @app.route('/addimg', methods=['POST'])
 def add_img():
     #print("1111111")
     global annotating_image
+    global clicks_list
+    clicks_list = []
     data = request.get_data()
-    #print(data[22:])
     img = base64.decodebytes(data[22:])
-    #print(img)
-    # print("22222")
-    # data = request.files['file'].read()
-    # print(data[:5])
     annotating_image = np.array(transform_image(img))
     predictor.set_input_image(annotating_image)
     response = jsonify({'status': "success"})
@@ -85,12 +99,11 @@ def add_img():
 
 @app.route('/getimg', methods=['GET'])
 def get_annotating_img():
-    print(annotating_image)
+    #print(annotating_image)
     im = Image.fromarray(annotating_image)
     im_byte = io.BytesIO()
     im.save(im_byte, format='PNG')
     my_string = base64.b64encode(im_byte.getvalue())
-    #print(my_string)
     response = jsonify({"img": str(my_string)})
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
