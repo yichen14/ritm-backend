@@ -14,7 +14,8 @@ import torch
 from isegm.inference import utils
 from isegm.inference.predictors import get_predictor
 from flask_cors import CORS
-
+from PIL import Image
+import io
 device = torch.device('cpu')
 
 EVAL_MAX_CLICKS = 20
@@ -68,7 +69,7 @@ def click():
 @app.route('/addimg', methods=['POST'])
 def add_img():
     #print("1111111")
-
+    global annotating_image
     data = request.get_data()
     #print(data[22:])
     img = base64.decodebytes(data[22:])
@@ -76,7 +77,7 @@ def add_img():
     # print("22222")
     # data = request.files['file'].read()
     # print(data[:5])
-    annotating_image = transform_image(img)
+    annotating_image = np.array(transform_image(img))
     predictor.set_input_image(annotating_image)
     response = jsonify({'status': "success"})
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -84,5 +85,12 @@ def add_img():
 
 @app.route('/getimg', methods=['GET'])
 def get_annotating_img():
-    my_string = base64.b64encode(annotating_image.read())
-    return jsonify({"img": my_string})
+    print(annotating_image)
+    im = Image.fromarray(annotating_image)
+    im_byte = io.BytesIO()
+    im.save(im_byte, format='PNG')
+    my_string = base64.b64encode(im_byte.getvalue())
+    #print(my_string)
+    response = jsonify({"img": str(my_string)})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
