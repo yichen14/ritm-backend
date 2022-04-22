@@ -13,6 +13,7 @@ import base64
 import torch
 from isegm.inference import utils
 from isegm.inference.predictors import get_predictor
+from flask_cors import CORS
 
 device = torch.device('cpu')
 
@@ -20,6 +21,7 @@ EVAL_MAX_CLICKS = 20
 MODEL_THRESH = 0.49
 
 app = Flask(__name__)
+CORS(app)
 cfg = exp.load_config_file('./web_config.yml', return_edict=True)
 # from isegm.inference import utils
 # DATASET = 'GrabCut'
@@ -65,13 +67,22 @@ def click():
 
 @app.route('/addimg', methods=['POST'])
 def add_img():
-    data = request.files['file'].read()
-    
-    annotating_image = transform_image(data)
-    
-    return jsonify({'status': "success"})
+    #print("1111111")
+
+    data = request.get_data()
+    #print(data[22:])
+    img = base64.decodebytes(data[22:])
+    #print(img)
+    # print("22222")
+    # data = request.files['file'].read()
+    # print(data[:5])
+    annotating_image = transform_image(img)
+    predictor.set_input_image(annotating_image)
+    response = jsonify({'status': "success"})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 @app.route('/getimg', methods=['GET'])
 def get_annotating_img():
-    
-    return jsonify(json.dumps(annotating_image.tolist()))
+    my_string = base64.b64encode(annotating_image.read())
+    return jsonify({"img": my_string})
