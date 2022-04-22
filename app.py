@@ -62,24 +62,26 @@ def click():
         click_info_x = data['click']['coords_x']
         click_info_y = data['click']['coords_y']
         # convert that to bytes
-        click = Click(is_positive=is_positive, coords=(click_info_x, click_info_y))
+        #print("click info:", is_positive, click_info_x, click_info_y)
+        click = Click(is_positive=is_positive, coords=(click_info_y, click_info_x))
         clicks_list.append(click)
         single_click = [click]
-        _, _, pred_mask = get_prediction_from_click(predictor, single_click=single_click)
         
-        #print(pred_mask[420:430, 350:370])
+        _, _, pred_mask = get_prediction_from_click(predictor, single_click=single_click)
+        #print(pred_mask[click_info_y, click_info_x])
+        #print(pred_mask[click_info_x-10:click_info_x+10, click_info_y-10:click_info_y+10])
         draw = vis.draw_with_blend_and_clicks(annotating_image, mask=pred_mask, clicks_list=clicks_list)
-        draw = np.concatenate((draw,
-            255 * pred_mask[:, :, np.newaxis].repeat(3, axis=2)
-        ), axis=1)
+        # draw = np.concatenate((draw,
+        #     255 * pred_mask[:, :, np.newaxis].repeat(3, axis=2)
+        # ), axis=1)
         # print(annotating_image[420:430, 350:370])
         # print("--------------------------")
         # print(draw[420:430, 350:370])
         img_arr = Image.fromarray(np.uint8(draw))
         im_byte = io.BytesIO()
-        img_arr.save(im_byte, format='PNG')
-        my_string = base64.b64encode(im_byte.getvalue())
-        response = jsonify({"img": str(my_string)})
+        img_arr.save(im_byte, format='JPEG')
+        my_string = str(base64.b64encode(im_byte.getvalue()))
+        response = jsonify({"img": my_string[2:-1]})
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
 
@@ -92,6 +94,7 @@ def add_img():
     data = request.get_data()
     img = base64.decodebytes(data[22:])
     annotating_image = np.array(transform_image(img))
+
     predictor.set_input_image(annotating_image)
     response = jsonify({'status': "success"})
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -102,8 +105,8 @@ def get_annotating_img():
     #print(annotating_image)
     im = Image.fromarray(annotating_image)
     im_byte = io.BytesIO()
-    im.save(im_byte, format='PNG')
-    my_string = base64.b64encode(im_byte.getvalue())
-    response = jsonify({"img": str(my_string)})
+    im.save(im_byte, format='JPEG')
+    my_string = str(base64.b64encode(im_byte.getvalue()))
+    response = jsonify({"img": my_string[2:-1]})
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response

@@ -11,7 +11,7 @@ from isegm.inference.clicker import Click
 
 def resp_to_image(resp_img):
     img_data = resp_img.json()
-    img = base64.decodebytes(img_data['img'][2:-1].encode('ascii'))
+    img = base64.decodebytes(img_data['img'].encode('ascii'))
     annotating_image = transform_image(img)
     plt.imshow(annotating_image)
     plt.show()

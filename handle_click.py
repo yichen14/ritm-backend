@@ -30,7 +30,8 @@ def transform_image(image_bytes):
     #                                         [0.485, 0.456, 0.406],
     #                                         [0.229, 0.224, 0.225])])
     image = Image.open(io.BytesIO(image_bytes))
-    return image
+    rgb_im = image.convert('RGB')
+    return rgb_im
 
 
 
