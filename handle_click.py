@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from PIL import Image
 import cv2
 from copy import deepcopy
-from IPython import embed
 import torchvision.transforms as transforms
 
 sys.path.insert(0, '..')

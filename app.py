@@ -1,4 +1,4 @@
-from tkinter.messagebox import NO
+from re import T
 from urllib import request
 from flask import jsonify
 from flask import Flask, request
@@ -16,6 +16,9 @@ from isegm.inference.predictors import get_predictor
 from flask_cors import CORS
 from PIL import Image
 import io
+import requests
+import pickle
+
 device = torch.device('cpu')
 
 EVAL_MAX_CLICKS = 20
@@ -51,9 +54,13 @@ predictor = get_predictor(model, brs_mode, device, prob_thresh=MODEL_THRESH)
 annotating_image = image
 predictor.set_input_image(annotating_image)
 clicks_list = []
+pred_mask = None
+
+
 @app.route('/click', methods=['POST'])
 def click():
     global clicks_list
+    global pred_mask
     if request.method == 'POST':
         # we will get the file from the request
         
@@ -85,11 +92,24 @@ def click():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
 
+@app.route('/train', methods=['POST'])
+def train_single():
+    global annotating_image
+    global pred_mask
+    img_bytes = pickle.dumps(annotating_image)
+    mask_bytes = pickle.dumps(pred_mask)
+    resp = requests.post("http://localhost:7000/trigger_finetune",
+                      files={"file": img_bytes, "mask": mask_bytes, "label":"cat"})
+    print(resp.json())
+    return resp.json()
+
 @app.route('/addimg', methods=['POST'])
 def add_img():
     #print("1111111")
     global annotating_image
     global clicks_list
+    global pred_mask
+    pred_mask = None
     clicks_list = []
     data = request.get_data()
     img = base64.decodebytes(data[22:])
@@ -110,3 +130,9 @@ def get_annotating_img():
     response = jsonify({"img": my_string[2:-1]})
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
+
+def main():
+    app.run(debug=True, port=5000)
+
+if __name__ == "__main__":
+    main()
