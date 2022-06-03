@@ -96,16 +96,17 @@ def click():
 def train_single():
     global annotating_image
     global pred_mask
+    data = request.get_json()
+    label = data['label']
     img_bytes = pickle.dumps(annotating_image)
     mask_bytes = pickle.dumps(pred_mask)
     resp = requests.post("http://localhost:7000/trigger_finetune",
-                      files={"file": img_bytes, "mask": mask_bytes, "label":"cat"})
+                      files={"file": img_bytes, "mask": mask_bytes, "label":label})
     print(resp.json())
     return resp.json()
 
 @app.route('/addimg', methods=['POST'])
 def add_img():
-    #print("1111111")
     global annotating_image
     global clicks_list
     global pred_mask
